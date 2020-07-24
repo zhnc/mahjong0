@@ -1,9 +1,9 @@
 package validate
 
 import (
+	"github.com/kris-nova/logger"
 	"github.com/spf13/cobra"
 	"io/ioutil"
-	"log"
 	"mctl/cmd"
 )
 
@@ -20,19 +20,19 @@ func validateFunc(c *cobra.Command, args []string) {
 	addr, _ := c.Flags().GetString("addr")
 	filename, _ := c.Flags().GetString("filename")
 	if filename == "" {
-		log.Fatal("Need deployment file to apply")
+		logger.Info("Need deployment file to apply")
 	} else {
 		buf, err := ioutil.ReadFile(filename)
 		if err != nil {
-			log.Printf("%s\n", err)
+			logger.Warning("%s\n", err)
 		}
 
 		var dcode, tcode int
-		dcode, _ = cmd.RunPost(addr, "deployment", buf)
+		dcode, _ = cmd.RunPostByVersion(addr, "deployment", buf)
 		if dcode != 200 {
-			tcode, _ = cmd.RunPost(addr, "tile", buf)
+			tcode, _ = cmd.RunPostByVersion(addr, "tile", buf)
 			if tcode != 200 {
-				log.Printf("%s\n", "Supplied content were neither 'Deployment' nor 'Tile'")
+				logger.Info("%s\n", "Supplied content were neither 'Deployment' nor 'Tile'")
 			}
 		}
 	}

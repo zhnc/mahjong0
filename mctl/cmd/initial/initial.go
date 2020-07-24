@@ -3,15 +3,16 @@ package initial
 import (
 	"bufio"
 	"crypto/tls"
-	"github.com/iancoleman/strcase"
-	"github.com/spf13/cobra"
-	"log"
 	"mctl/cmd"
 	"net/http"
 	"os"
 	"path/filepath"
 	"strings"
 	"text/template"
+
+	"github.com/iancoleman/strcase"
+	"github.com/kris-nova/logger"
+	"github.com/spf13/cobra"
 )
 
 var Init = &cobra.Command{
@@ -76,21 +77,21 @@ func tileFunc(c *cobra.Command, args []string) {
 					//tp = tp.New("x")
 					tp, err := template.ParseFiles(path)
 					if err != nil {
-						log.Printf("%s\n", err)
+						logger.Info("%s\n", err)
 					}
 					f, err := os.Create(strings.TrimSuffix(path, ".tp"))
 					if err != nil {
-						log.Printf("%s\n", err)
+						logger.Info("%s\n", err)
 					}
 
 					err = tp.Execute(f, tt)
 					if err != nil {
-						log.Printf("file: %s : %s\n", path, err)
+						logger.Info("file: %s : %s\n", path, err)
 					}
 					defer f.Close()
 					os.Remove(path)
 				}
-				log.Printf("Generated file - %s \n", path)
+				logger.Info("Generated file - %s \n", path)
 				return nil
 			})
 
@@ -102,7 +103,7 @@ func tileFunc(c *cobra.Command, args []string) {
 
 func deploymentFunc(c *cobra.Command, args []string) {
 
-	deploymentExample:=`
+	deploymentExample := `
 apiVersion: mahjong.io/v1alpha1
 kind: Deployment 
 metadata:
@@ -126,40 +127,40 @@ spec:
     description: 
     outputs:
       - name: EKS Cluster Name
-        valueRef: $(tileEKS005.outputs.clusterName)
+        value: $(tileEKS005.outputs.clusterName)
       - name: Master role arn for EKS Cluster
-        valueRef: $(tileEKS005.outputs.masterRoleARN)
+        value: $(tileEKS005.outputs.masterRoleARN)
       - name: The API endpoint EKS Cluster
-        valueRef: $(tileEKS005.outputs.clusterEndpoint)
+        value: $(tileEKS005.outputs.clusterEndpoint)
       - name: Instance type of worker node
-        valueRef: $(tileEKS005.outputs.capacityInstance)
+        value: $(tileEKS005.outputs.capacityInstance)
       - name: Default capacity of worker node
-        valueRef: $(tileEKS005.outputs.capacity)
+        value: $(tileEKS005.outputs.capacity)
 
     notes: []
 
 `
-	log.Println("Generating simple example for deployment ... ...")
+	logger.Info("Generating simple example for deployment ... ...")
 	file, err := os.Create("simple-eks.yaml")
-	if err!=nil{
-		log.Printf("Generating simple example for deployment was failed, with error: %s\n", err)
+	if err != nil {
+		logger.Warning("Generating simple example for deployment was failed, with error: %s\n", err)
 	}
 	defer file.Close()
 	_, err = file.Write([]byte(deploymentExample))
 	if err != nil {
-		log.Printf("Generating simple example for deployment was failed, with error: %s\n", err)
+		logger.Warning("Generating simple example for deployment was failed, with error: %s\n", err)
 	}
-	log.Printf("Generated a simple example. ")
-	log.Printf("Download https://github.com/cc4i/mahjong0/blob/master/templates/deployment-schema.json for schema, and jump to https://github.com/cc4i/mahjong0#examples for more examples.\n")
+	logger.Info("Generated a simple example. ")
+	logger.Info("Download https://github.com/cc4i/mahjong0/blob/master/templates/deployment-schema.json for schema, and jump to https://github.com/cc4i/mahjong0#examples for more examples.\n")
 }
 
 func download(c *cobra.Command, args []string, name string) (string, error) {
-	log.Printf("Loading %s templates from Tile-Repo started ...", name)
+	logger.Info("Loading %s templates from Tile-Repo started ...", name)
 
 	addr, _ := c.Flags().GetString("addr")
 
 	t, _ := c.Flags().GetString("type")
-	uri := "v1alpha1/template/"
+	uri := "template/"
 	if name == "sample-tile" {
 		uri = uri + name
 	} else {
@@ -181,9 +182,9 @@ func download(c *cobra.Command, args []string, name string) (string, error) {
 	version, _ := c.Flags().GetString("version")
 	destDir = destDir + version
 
-	url, err := cmd.RunGet(addr, uri)
+	url, err := cmd.RunGetByVersion(addr, uri)
 	if err != nil {
-		log.Printf("Loading %s was failed with Err: %s. %s\n", name, err, url)
+		logger.Warning("Loading %s was failed with Err: %s. %s\n", name, err, url)
 		return destDir, err
 	}
 
@@ -196,16 +197,16 @@ func download(c *cobra.Command, args []string, name string) (string, error) {
 	req, err := http.NewRequest(http.MethodGet, string(url), nil)
 	resp, err := httpClient.Do(req)
 	if err != nil {
-		log.Printf("Downloading was failed from %s with Err: %s. \n", string(url), err)
+		logger.Warning("Downloading was failed from %s with Err: %s. \n", string(url), err)
 		return destDir, err
 	}
 
 	err = cmd.UnTarGz(destDir, bufio.NewReader(resp.Body))
 	if err != nil {
-		log.Printf("Unzip tar was failed with Err: %s \n", err.Error())
+		logger.Warning("Unzip tar was failed with Err: %s \n", err.Error())
 		return destDir, err
 	}
 
-	log.Printf("Loading %s templates finished.", name)
+	logger.Info("Loading %s templates finished.", name)
 	return destDir, nil
 }
